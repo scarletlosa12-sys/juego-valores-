@@ -1,0 +1,179 @@
+/*
+ * MANUAL INTERACTIVO: VALORES DE PAZ - RELACIONA LAS COLUMNAS
+ * Columna izquierda: situaciones donde falta el valor (numeradas 1, 2, 3...)
+ * Columna derecha:   valores de paz (letras A, B, C...) en orden aleatorio
+ * El usuario escribe la letra del valor que completa cada situacion.
+ *
+ * Compilar:  gcc valores_de_paz.c -o valores_de_paz
+ * Ejecutar:  ./valores_de_paz   (en Windows: valores_de_paz.exe)
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <ctype.h>
+
+#define TOTAL 10   /* cantidad de reactivos por ronda */
+
+typedef struct {
+    const char *situacion;   /* situacion donde falta el valor (____) */
+    const char *valor;       /* valor de paz correcto                 */
+} Reactivo;
+
+/* Banco de reactivos: puedes cambiar o agregar situaciones.
+   Si agregas mas, ajusta TOTAL. */
+Reactivo banco[TOTAL] = {
+    {"Aceptas con calma que tu companero piense distinto a ti: ____",                   "Tolerancia"},
+    {"Dos amigos resuelven su desacuerdo hablando sin gritos ni golpes: ____",          "Dialogo"},
+    {"Te pones en el lugar de alguien triste para entender como se siente: ____",       "Empatia"},
+    {"Tratas con cortesia a tus maestros y no te burlas de nadie: ____",                "Respeto"},
+    {"Ayudas a las victimas de un desastre sin esperar nada a cambio: ____",            "Solidaridad"},
+    {"Admites que rompiste algo y dices la verdad aunque te castiguen: ____",             "Honestidad"},
+    {"Todo el equipo trabaja unido para lograr una meta en comun: ____",                "Cooperacion"},
+    {"Dejas el rencor hacia quien te ofendio y te pidio disculpas: ____",               "Perdon"},
+    {"Todas las personas tienen las mismas oportunidades sin importar su origen: ____", "Igualdad"},
+    {"Se da a cada quien lo que le corresponde, sin favoritismos: ____",                "Justicia"}
+};
+
+/* Mezcla un arreglo de enteros (algoritmo Fisher-Yates) */
+void mezclar(int a[], int n) {
+    int i, j, tmp;
+    for (i = n - 1; i > 0; i--) {
+        j = rand() % (i + 1);
+        tmp = a[i];
+        a[i] = a[j];
+        a[j] = tmp;
+    }
+}
+
+/* Limpia lo que quede en el buffer de entrada */
+void limpiarBuffer(void) {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) { }
+}
+
+/* Muestra las dos columnas */
+void mostrarColumnas(int orden[]) {
+    int i;
+    printf("\n%-86s | %s\n", "COLUMNA 1 (situaciones)", "COLUMNA 2 (valores de paz)");
+    printf("-----------------------------------------------------------------------------------"
+           "---+---------------------\n");
+    for (i = 0; i < TOTAL; i++) {
+        printf("%2d) %-82s | %c) %s\n",
+               i + 1,
+               banco[i].situacion,
+               'A' + i,
+               banco[orden[i]].valor);
+    }
+    printf("\n");
+}
+
+/* Ejecuta una ronda y devuelve los aciertos */
+int jugarRonda(void) {
+    int orden[TOTAL];      /* orden[k] = indice del reactivo cuyo valor aparece en la letra k */
+    int respuestaUsuario[TOTAL];
+    int i, aciertos = 0;
+    char entrada;
+
+    for (i = 0; i < TOTAL; i++) orden[i] = i;
+    mezclar(orden, TOTAL);
+
+    mostrarColumnas(orden);
+
+    printf("Escribe la LETRA del valor que completa cada situacion.\n\n");
+    for (i = 0; i < TOTAL; i++) {
+        int valida = 0;
+        while (!valida) {
+            printf("Situacion %d -> letra: ", i + 1);
+            if (scanf(" %c", &entrada) != 1) {
+                limpiarBuffer();
+                continue;
+            }
+            limpiarBuffer();
+            entrada = (char)toupper((unsigned char)entrada);
+            if (entrada >= 'A' && entrada < 'A' + TOTAL) {
+                valida = 1;
+            } else {
+                printf("  Opcion invalida. Usa letras de A a %c.\n", 'A' + TOTAL - 1);
+            }
+        }
+        respuestaUsuario[i] = entrada - 'A';
+    }
+
+    /* Revision de resultados */
+    printf("\n========== RESULTADOS ==========\n");
+    for (i = 0; i < TOTAL; i++) {
+        int letraElegida = respuestaUsuario[i];
+        int correcta = (orden[letraElegida] == i);
+        int letraCorrecta = 0, k;
+
+        for (k = 0; k < TOTAL; k++) {
+            if (orden[k] == i) { letraCorrecta = k; break; }
+        }
+
+        if (correcta) {
+            aciertos++;
+            printf("%2d) Correcto   (%c = %s)\n", i + 1, 'A' + letraElegida,
+                   banco[i].valor);
+        } else {
+            printf("%2d) Incorrecto (elegiste %c, la respuesta era %c = %s)\n",
+                   i + 1, 'A' + letraElegida, 'A' + letraCorrecta, banco[i].valor);
+        }
+    }
+
+    printf("\nAciertos: %d de %d  (%.0f%%)\n", aciertos, TOTAL,
+           (aciertos * 100.0) / TOTAL);
+
+    if (aciertos == TOTAL)            printf("Excelente, eres un promotor de la paz!\n");
+    else if (aciertos >= TOTAL * 0.6) printf("Bien, sigue practicando los valores de paz.\n");
+    else                              printf("Repasa los valores de paz e intentalo de nuevo.\n");
+
+    return aciertos;
+}
+
+int main(void) {
+    int opcion, mejor = 0, aciertos;
+
+    srand((unsigned int)time(NULL));
+
+    do {
+        printf("\n=====================================\n");
+        printf("   MANUAL INTERACTIVO - VALORES DE PAZ\n");
+        printf("=====================================\n");
+        printf("1. Jugar\n");
+        printf("2. Instrucciones\n");
+        printf("3. Ver mejor puntaje (%d/%d)\n", mejor, TOTAL);
+        printf("4. Salir\n");
+        printf("Elige una opcion: ");
+
+        if (scanf("%d", &opcion) != 1) {
+            limpiarBuffer();
+            opcion = 0;
+        } else {
+            limpiarBuffer();
+        }
+
+        switch (opcion) {
+            case 1:
+                aciertos = jugarRonda();
+                if (aciertos > mejor) mejor = aciertos;
+                break;
+            case 2:
+                printf("\nVeras situaciones numeradas donde falta un valor de paz (____)\n");
+                printf("y una lista de valores con letras. Escribe la letra del valor\n");
+                printf("que completa cada situacion. Al final veras tu calificacion\n");
+                printf("y las respuestas correctas.\n");
+                break;
+            case 3:
+                printf("\nTu mejor puntaje: %d de %d\n", mejor, TOTAL);
+                break;
+            case 4:
+                printf("\nQue la paz te acompane. Hasta luego!\n");
+                break;
+            default:
+                printf("\nOpcion no valida.\n");
+        }
+    } while (opcion != 4);
+
+    return 0;
+}
